@@ -48,17 +48,20 @@ select.month{border:1px solid var(--line); background:var(--card); border-radius
 .opt label{display:flex; align-items:center; gap:6px; cursor:pointer}
 
 /* sections */
-section,details.sec{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
-section h2,details.sec>summary{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
-section h2 small,details.sec>summary small{font-weight:400; color:var(--mute); font-size:12px}
+section{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
+section h2{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
+section h2 small{font-weight:400; color:var(--mute); font-size:12px}
 
-details.sec>summary{list-style:none; cursor:pointer; margin:0}
-details.sec>summary::-webkit-details-marker{display:none}
-details.sec>summary::after,summary.day::after{content:"›"; color:var(--mute); font-size:18px; line-height:1; transition:transform .15s; margin-left:8px}
-details.sec[open]>summary,details.dayg[open]>summary.day{margin-bottom:10px}
-details.sec[open]>summary::after,details.dayg[open]>summary.day::after{transform:rotate(90deg)}
-details.sec>summary span.l{flex:1}
-details.sec>summary small{margin-right:0}
+/* tabs */
+.tabbar{display:flex; gap:6px; margin-top:12px}
+.tabbar button{flex:1; height:38px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:14px; color:var(--mute); padding:0 4px; white-space:nowrap}
+.tabbar button.on{background:var(--ink); color:var(--card); border-color:var(--ink); font-weight:600}
+.pane{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:8px; box-shadow:var(--shadow)}
+.pane[hidden]{display:none}
+.pane .hint:empty{display:none}
+.pane .hint b{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px}
+.pane .hint span+span{margin-left:12px}
+.pane .hint{display:block; font-size:12px; color:var(--mute); margin-bottom:10px}
 /* category bars */
 .cat{display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center; padding:5px 4px; border-radius:8px; width:100%; background:none; border:0; text-align:left}
 .cat:hover{background:var(--chip)}
@@ -108,6 +111,8 @@ details.sec>summary small{margin-right:0}
 .filt button{border:0; background:none; color:var(--mute); padding:0 4px; font-size:16px; line-height:1}
 summary.day{display:flex; align-items:center; font-size:14px; color:var(--ink); padding:11px 2px; border-bottom:1px solid var(--line); list-style:none; cursor:pointer}
 summary.day::-webkit-details-marker{display:none}
+summary.day::after{content:"›"; color:var(--mute); font-size:18px; line-height:1; transition:transform .15s; margin-left:8px}
+details.dayg[open]>summary.day::after{transform:rotate(90deg)}
 summary.day span.l{flex:1; font-weight:600}
 summary.day span.n2{color:var(--mute); font-size:13px}
 details.dayg[open]>summary.day{margin-bottom:0}
@@ -147,7 +152,7 @@ const COLORS = {飲食:"#e08a3c",交通:"#4a8fd6",生活:"#7a6bd1",投資:"#2c9a
 const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
-const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, open:{}, dayOpen:{}};
+const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => Math.round(n).toLocaleString("en-US");
@@ -252,38 +257,41 @@ function render(){
     <label><input type="checkbox" id="noinv" ${st.noInv?"checked":""}> 不計「投資」</label>
   </div>
 
-  <details class="sec" data-k="cat" ${st.open.cat?"open":""}>
-    <summary><span class="l">支出用途</span><small>點選可篩選明細</small></summary>
+  <div class="tabbar" role="tablist">
+    ${[["cat","支出用途"],["daily","每日支出"],["trend","近12個月"],["meth","支付方式"]].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${st.tab===k?"on":""}" aria-selected="${st.tab===k}">${l}</button>`).join("")}
+  </div>
+  <div class="pane" data-k="cat" ${st.tab==="cat"?"":"hidden"}>
+    <div class="hint">點選可篩選明細</div>
     ${catList.length? catList.map(([c,v])=>`
       <button class="cat ${st.cat===c?"on":""}" data-cat="${esc(c)}">
         <span class="n">${esc(c)}</span>
         <span class="bar"><i style="width:${v/maxC*100}%;background:${col(c)}"></i></span>
         <span class="a">$${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>
       </button>`).join("") : '<div class="empty">本月沒有支出</div>'}
-  </details>
+  </div>
 
-  <details class="sec" data-k="daily" ${st.open.daily?"open":""}>
-    <summary><span class="l">每日支出</span><small>${E?`最高 ${mo}/${maxIdx+1} $${fmt(daily[maxIdx])}`:""}</small></summary>
+  <div class="pane" data-k="daily" ${st.tab==="daily"?"":"hidden"}>
+    <div class="hint">${E?`最高 ${mo}/${maxIdx+1} $${fmt(daily[maxIdx])}`:""}</div>
     <div class="chart">
       ${daily.map((v,i)=>`<div class="col ${v===0?"zero":""} ${v&&i===maxIdx?"max":""}" title="${mo}/${i+1}：$${fmt(v)}"><i style="height:${v/maxD*100}%"></i></div>`).join("")}
     </div>
     <div class="axis">${daily.map((_,i)=>`<span>${(i+1)%5===1||i===days-1&&false?i+1:""}</span>`).join("")}</div>
-  </details>
+  </div>
 
-  <details class="sec" data-k="trend" ${st.open.trend?"open":""}>
-    <summary><span class="l">近 12 個月</span><small class="legend"><span><b style="background:var(--out)"></b>支出</span><span><b style="background:var(--in)"></b>收入</span></small></summary>
+  <div class="pane" data-k="trend" ${st.tab==="trend"?"":"hidden"}>
+    <div class="hint"><span><b style="background:var(--out)"></b>支出</span><span><b style="background:var(--in)"></b>收入</span></div>
     <div class="trend">
       ${tm.map(t=>`<button class="tm ${t.k===st.month?"on":""}" data-m="${t.k}" title="支出 $${fmt(t.e)}／收入 $${fmt(t.i)}">
         <div class="pair"><i class="o" style="height:${t.e/maxT*100}%"></i><i class="p" style="height:${t.i/maxT*100}%"></i></div>
         <span>${+t.k.slice(5)}月</span></button>`).join("")}
     </div>
-  </details>
+  </div>
 
-  ${mList.length?`<details class="sec" data-k="meth" ${st.open.meth?"open":""}>
-    <summary><span class="l">支付方式</span></summary>
+  <div class="pane" data-k="meth" ${st.tab==="meth"?"":"hidden"}>
+    ${!mList.length?'<div class="empty">本月沒有支出</div>':""}
     <div class="meth">${mList.map(([m,v])=>`<i style="width:${v/E*100}%;background:${METHOD_COLORS[m]||"#8a94a3"}"></i>`).join("")}</div>
     <div class="mlegend">${mList.map(([m,v])=>`<span><b style="background:${METHOD_COLORS[m]||"#8a94a3"}"></b>${esc(m)} $${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>`).join("")}</div>
-  </details>`:""}
+  </div>
 
   <section>
     <h2>明細 <small id="cnt"></small></h2>
@@ -330,7 +338,7 @@ function renderList(mr){
 
 function bind(){
   const mr=()=>st.rows.filter(r=>r.key===st.month && !(st.noInv&&r.cat==="投資"));
-  document.querySelectorAll("details.sec").forEach(d=>d.addEventListener("toggle",()=>{st.open[d.dataset.k]=d.open}));
+  document.querySelectorAll(".tabbar button").forEach(b=>b.onclick=()=>{st.tab=st.tab===b.dataset.tab?null:b.dataset.tab; render()});
   document.querySelectorAll(".cat").forEach(b=>b.onclick=()=>{st.cat=st.cat===b.dataset.cat?null:b.dataset.cat; st.shown=PAGE; render()});
   document.querySelectorAll(".tm").forEach(b=>b.onclick=()=>{st.month=b.dataset.m; st.cat=null; st.shown=PAGE; render()});
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{st.type=b.dataset.type; st.shown=PAGE; render()});
