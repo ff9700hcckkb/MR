@@ -329,7 +329,7 @@ function renderList(mr){
       <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"尚無紀錄"}</span></summary>`+
       (g.items.length? g.items.map(r=>`<div class="row">
         <span class="dot" style="background:${col(r.cat)}"></span>
-        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}</b><small>${esc(r.cat)}・${esc(r.method)}・${r.time}</small></div>
+        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
         <div class="m ${r.type==="收入"?"pos":""}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
       `</details>`;
   }).join("");
