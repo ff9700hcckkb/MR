@@ -48,10 +48,17 @@ select.month{border:1px solid var(--line); background:var(--card); border-radius
 .opt label{display:flex; align-items:center; gap:6px; cursor:pointer}
 
 /* sections */
-section{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
-section h2{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
-section h2 small{font-weight:400; color:var(--mute); font-size:12px}
+section,details.sec{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
+section h2,details.sec>summary{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
+section h2 small,details.sec>summary small{font-weight:400; color:var(--mute); font-size:12px}
 
+details.sec>summary{list-style:none; cursor:pointer; margin:0}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary::after,summary.day::after{content:"›"; color:var(--mute); font-size:18px; line-height:1; transition:transform .15s; margin-left:8px}
+details.sec[open]>summary,details.dayg[open]>summary.day{margin-bottom:10px}
+details.sec[open]>summary::after,details.dayg[open]>summary.day::after{transform:rotate(90deg)}
+details.sec>summary span.l{flex:1}
+details.sec>summary small{margin-right:0}
 /* category bars */
 .cat{display:grid; grid-template-columns:64px 1fr auto; gap:10px; align-items:center; padding:5px 4px; border-radius:8px; width:100%; background:none; border:0; text-align:left}
 .cat:hover{background:var(--chip)}
@@ -99,7 +106,12 @@ section h2 small{font-weight:400; color:var(--mute); font-size:12px}
 .seg button.on{background:var(--ink); color:var(--card)}
 .filt{display:inline-flex; gap:6px; align-items:center; background:var(--chip); border-radius:999px; padding:2px 6px 2px 10px; font-size:13px; margin-bottom:8px}
 .filt button{border:0; background:none; color:var(--mute); padding:0 4px; font-size:16px; line-height:1}
-.day{display:flex; justify-content:space-between; font-size:12px; color:var(--mute); padding:12px 2px 4px; border-bottom:1px solid var(--line)}
+summary.day{display:flex; align-items:center; font-size:14px; color:var(--ink); padding:11px 2px; border-bottom:1px solid var(--line); list-style:none; cursor:pointer}
+summary.day::-webkit-details-marker{display:none}
+summary.day span.l{flex:1; font-weight:600}
+summary.day span.n2{color:var(--mute); font-size:13px}
+details.dayg[open]>summary.day{margin-bottom:0}
+.todayhint{color:var(--mute); font-size:13px; padding:10px 2px}
 .row{display:grid; grid-template-columns:10px 1fr auto; gap:10px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .dot{width:8px; height:8px; border-radius:50%}
@@ -135,7 +147,7 @@ const COLORS = {飲食:"#e08a3c",交通:"#4a8fd6",生活:"#7a6bd1",投資:"#2c9a
 const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
-const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE};
+const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, open:{}, dayOpen:{}};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = n => Math.round(n).toLocaleString("en-US");
@@ -233,48 +245,45 @@ function render(){
     <div class="lbl">本月支出</div>
     <div class="big">$${fmt(E)}</div>
     <div class="sub">
-      <div><div class="lbl">收入</div><div class="v pos">$${fmt(I)}</div></div>
-      <div><div class="lbl">結餘</div><div class="v ${B>=0?"pos":"neg"}">${B<0?"−":""}$${fmt(Math.abs(B))}</div></div>
-      <div><div class="lbl">日均支出</div><div class="v">$${fmt(avg)}</div></div>
+      <div><div class="lbl">本月收入</div><div class="v pos">$${fmt(I)}</div></div>
     </div>
   </div>
   <div class="opt">
     <label><input type="checkbox" id="noinv" ${st.noInv?"checked":""}> 不計「投資」</label>
-    ${X?`<span>標記 X 的支出 $${fmt(X)}</span>`:""}
   </div>
 
-  <section>
-    <h2>支出用途 <small>點選可篩選明細</small></h2>
+  <details class="sec" data-k="cat" ${st.open.cat?"open":""}>
+    <summary><span class="l">支出用途</span><small>點選可篩選明細</small></summary>
     ${catList.length? catList.map(([c,v])=>`
       <button class="cat ${st.cat===c?"on":""}" data-cat="${esc(c)}">
         <span class="n">${esc(c)}</span>
         <span class="bar"><i style="width:${v/maxC*100}%;background:${col(c)}"></i></span>
         <span class="a">$${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>
       </button>`).join("") : '<div class="empty">本月沒有支出</div>'}
-  </section>
+  </details>
 
-  <section>
-    <h2>每日支出 <small>${E?`最高 ${mo}/${maxIdx+1} $${fmt(daily[maxIdx])}`:""}</small></h2>
+  <details class="sec" data-k="daily" ${st.open.daily?"open":""}>
+    <summary><span class="l">每日支出</span><small>${E?`最高 ${mo}/${maxIdx+1} $${fmt(daily[maxIdx])}`:""}</small></summary>
     <div class="chart">
       ${daily.map((v,i)=>`<div class="col ${v===0?"zero":""} ${v&&i===maxIdx?"max":""}" title="${mo}/${i+1}：$${fmt(v)}"><i style="height:${v/maxD*100}%"></i></div>`).join("")}
     </div>
     <div class="axis">${daily.map((_,i)=>`<span>${(i+1)%5===1||i===days-1&&false?i+1:""}</span>`).join("")}</div>
-  </section>
+  </details>
 
-  <section>
-    <h2>近 12 個月 <small class="legend"><span><b style="background:var(--out)"></b>支出</span><span><b style="background:var(--in)"></b>收入</span></small></h2>
+  <details class="sec" data-k="trend" ${st.open.trend?"open":""}>
+    <summary><span class="l">近 12 個月</span><small class="legend"><span><b style="background:var(--out)"></b>支出</span><span><b style="background:var(--in)"></b>收入</span></small></summary>
     <div class="trend">
       ${tm.map(t=>`<button class="tm ${t.k===st.month?"on":""}" data-m="${t.k}" title="支出 $${fmt(t.e)}／收入 $${fmt(t.i)}">
         <div class="pair"><i class="o" style="height:${t.e/maxT*100}%"></i><i class="p" style="height:${t.i/maxT*100}%"></i></div>
         <span>${+t.k.slice(5)}月</span></button>`).join("")}
     </div>
-  </section>
+  </details>
 
-  ${mList.length?`<section>
-    <h2>支付方式</h2>
+  ${mList.length?`<details class="sec" data-k="meth" ${st.open.meth?"open":""}>
+    <summary><span class="l">支付方式</span></summary>
     <div class="meth">${mList.map(([m,v])=>`<i style="width:${v/E*100}%;background:${METHOD_COLORS[m]||"#8a94a3"}"></i>`).join("")}</div>
     <div class="mlegend">${mList.map(([m,v])=>`<span><b style="background:${METHOD_COLORS[m]||"#8a94a3"}"></b>${esc(m)} $${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>`).join("")}</div>
-  </section>`:""}
+  </details>`:""}
 
   <section>
     <h2>明細 <small id="cnt"></small></h2>
@@ -297,24 +306,31 @@ function renderList(mr){
     (!st.cat || r.cat===st.cat) &&
     (!q || (r.note+r.cat+r.method).toLowerCase().includes(q)));
   $("#cnt").textContent = rows.length+" 筆";
-  if(!rows.length){ $("#list").innerHTML='<div class="empty">沒有符合的紀錄</div>'; return }
-  const vis=rows.slice(0,st.shown);
-  const groups=[]; vis.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.day===r.day)g.items.push(r); else groups.push({day:r.day,items:[r]}) });
-  const wk="日一二三四五六";
+  const now=new Date(), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  const isCur = st.month===today.slice(0,7);
+  const groups=[]; rows.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.day===r.day)g.items.push(r); else groups.push({day:r.day,items:[r]}) });
+  if(isCur && !groups.some(g=>g.day===today)) groups.unshift({day:today,items:[]});
+  if(!groups.length){ $("#list").innerHTML='<div class="empty">沒有符合的紀錄</div>'; return }
+  const wk="日一二三四五六", filtering=!!(q||st.cat);
   $("#list").innerHTML = groups.map(g=>{
     const dt=new Date(g.day.replace(/-/g,"/"));
-    const net=rows.filter(r=>r.day===g.day).reduce((s,r)=>s+(r.type==="收入"?r.amt:-r.amt),0);
-    return `<div class="day"><span>${dt.getMonth()+1}/${dt.getDate()}（${wk[dt.getDay()]}）</span><span>${net<0?"−":"+"}$${fmt(Math.abs(net))}</span></div>`+
-    g.items.map(r=>`<div class="row">
-      <span class="dot" style="background:${col(r.cat)}"></span>
-      <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}</b><small>${esc(r.cat)}・${esc(r.method)}・${r.time}</small></div>
-      <div class="m ${r.type==="收入"?"pos":""}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("");
-  }).join("") + (rows.length>vis.length?`<button class="more" id="more">顯示更多（還有 ${rows.length-vis.length} 筆）</button>`:"");
-  const more=$("#more"); if(more) more.onclick=()=>{st.shown+=PAGE; renderList(mr)};
+    const net=g.items.reduce((s,r)=>s+(r.type==="收入"?r.amt:-r.amt),0);
+    const open = filtering ? true : (g.day in st.dayOpen ? st.dayOpen[g.day] : g.day===today);
+    const label = `${dt.getMonth()+1}/${dt.getDate()}（${wk[dt.getDay()]}）${g.day===today?" 今天":""}`;
+    return `<details class="dayg" data-day="${g.day}" ${open?"open":""}>
+      <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"尚無紀錄"}</span></summary>`+
+      (g.items.length? g.items.map(r=>`<div class="row">
+        <span class="dot" style="background:${col(r.cat)}"></span>
+        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}</b><small>${esc(r.cat)}・${esc(r.method)}・${r.time}</small></div>
+        <div class="m ${r.type==="收入"?"pos":""}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
+      `</details>`;
+  }).join("");
+  document.querySelectorAll("details.dayg").forEach(d=>d.addEventListener("toggle",()=>{ if(!filtering) st.dayOpen[d.dataset.day]=d.open }));
 }
 
 function bind(){
   const mr=()=>st.rows.filter(r=>r.key===st.month && !(st.noInv&&r.cat==="投資"));
+  document.querySelectorAll("details.sec").forEach(d=>d.addEventListener("toggle",()=>{st.open[d.dataset.k]=d.open}));
   document.querySelectorAll(".cat").forEach(b=>b.onclick=()=>{st.cat=st.cat===b.dataset.cat?null:b.dataset.cat; st.shown=PAGE; render()});
   document.querySelectorAll(".tm").forEach(b=>b.onclick=()=>{st.month=b.dataset.m; st.cat=null; st.shown=PAGE; render()});
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{st.type=b.dataset.type; st.shown=PAGE; render()});
