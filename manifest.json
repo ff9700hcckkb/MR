@@ -3,8 +3,8 @@
   "short_name": "記帳本",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#16a77f",
-  "theme_color": "#16a77f",
+  "background_color": "#12181f",
+  "theme_color": "#12181f",
   "icons": [
     {
       "src": "icon-192.png",
