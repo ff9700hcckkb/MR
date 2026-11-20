@@ -65,9 +65,13 @@ section h2 small{font-weight:400; color:var(--mute); font-size:12px}
 /* tabs */
 .tabbar{display:flex; gap:6px; margin-top:12px}
 .tabbar button{flex:1; height:38px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:14px; color:var(--mute); padding:0 4px; white-space:nowrap}
+.tabbar button[data-tab="x"]{flex:0 0 44px}
 .tabbar button.on{background:var(--ink); color:var(--card); border-color:var(--ink); font-weight:600}
 .pane{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:8px; box-shadow:var(--shadow)}
 .pane[hidden]{display:none}
+.xsum{display:flex; align-items:baseline; gap:10px; margin-bottom:6px}
+.xsum b{font-size:22px; color:var(--out)}
+.xsum span{color:var(--mute); font-size:13px}
 .pane .hint:empty{display:none}
 .pane .hint b{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px}
 .pane .hint span+span{margin-left:12px}
@@ -256,6 +260,8 @@ function render(){
   const mm={}; exp.forEach(r=>mm[r.method]=(mm[r.method]||0)+r.amt);
   const mList=Object.entries(mm).sort((a,b)=>b[1]-a[1]);
 
+  // flagged list
+  const xr = exp.filter(r=>r.flag), xs = sum(xr);
   // flagged
   const X = sum(exp.filter(r=>r.flag));
 
@@ -272,7 +278,7 @@ function render(){
   </div>
 
   <div class="tabbar" role="tablist">
-    ${[["cat","支出用途"],["daily","每日支出"],["trend","近12個月"],["meth","支付方式"]].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${st.tab===k?"on":""}" aria-selected="${st.tab===k}">${l}</button>`).join("")}
+    ${[["cat","支出用途"],["daily","每日支出"],["trend","近12個月"],["meth","支付方式"],["x","X"]].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${st.tab===k?"on":""}" aria-selected="${st.tab===k}">${l}</button>`).join("")}
   </div>
   <div class="pane" data-k="cat" ${st.tab==="cat"?"":"hidden"}>
     <div class="hint">點選可篩選明細</div>
@@ -307,38 +313,49 @@ function render(){
     <div class="mlegend">${mList.map(([m,v])=>`<span><b style="background:${METHOD_COLORS[m]||"#8a94a3"}"></b>${esc(m)} $${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>`).join("")}</div>
   </div>
 
+  <div class="pane" data-k="x" ${st.tab==="x"?"":"hidden"}>
+    ${xr.length?`<div class="xsum"><b>$${fmt(xs)}</b><span>${xr.length} 筆・占支出 ${(xs/E*100).toFixed(0)}%</span></div>`+
+      xr.map(r=>`<div class="row"><span class="dot" style="background:${col(r.cat)}"></span>
+        <div class="t"><b>${esc(r.note||r.cat)}</b><small>${r.d.getMonth()+1}/${r.d.getDate()} ${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
+        <div class="m">$${fmt(r.amt)}</div></div>`).join(""):'<div class="empty">本月沒有 X</div>'}
+  </div>
+
   <section>
     <h2>明細 <small id="cnt"></small></h2>
     <div class="tools">
-      <input type="search" id="q" placeholder="搜尋備註、用途…" value="${esc(st.q)}">
+      <input type="search" id="q" placeholder="搜尋全部月份（備註、用途）" value="${esc(st.q)}">
       <div class="seg">${[["all","全部"],["支出","支出"],["收入","收入"]].map(([v,l])=>`<button data-type="${v}" class="${st.type===v?"on":""}">${l}</button>`).join("")}</div>
     </div>
     ${st.cat?`<div class="filt">用途：${esc(st.cat)}<button id="clrcat" aria-label="清除篩選">×</button></div>`:""}
     <div id="list"></div>
   </section>`;
   $("#app").innerHTML = html;
-  renderList(mr);
+  renderList();
   bind();
 }
 
-function renderList(mr){
+function renderList(){
   const q=st.q.trim().toLowerCase();
-  const rows = mr.filter(r=>
+  const pool=st.rows.filter(r=>!(st.noInv && r.cat==="投資"));
+  const mr = q ? pool : pool.filter(r=>r.key===st.month);   // 有搜尋字時跨所有月份
+  const LIMIT=200;
+  let rows = mr.filter(r=>
     (st.type==="all"||r.type===st.type) &&
     (!st.cat || r.cat===st.cat) &&
     (!q || (r.note+r.cat+r.method).toLowerCase().includes(q)));
-  $("#cnt").textContent = rows.length+" 筆";
+  const total=rows.length; if(rows.length>LIMIT) rows=rows.slice(0,LIMIT);
+  $("#cnt").textContent = q ? `全部月份 ${total} 筆` : total+" 筆";
   const now=new Date(), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   const isCur = st.month===today.slice(0,7);
   const groups=[]; rows.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.day===r.day)g.items.push(r); else groups.push({day:r.day,items:[r]}) });
-  if(isCur && !groups.some(g=>g.day===today)) groups.unshift({day:today,items:[]});
+  if(!q && isCur && !groups.some(g=>g.day===today)) groups.unshift({day:today,items:[]});
   if(!groups.length){ $("#list").innerHTML='<div class="empty">沒有符合的紀錄</div>'; return }
   const wk="日一二三四五六", filtering=!!(q||st.cat);
   $("#list").innerHTML = groups.map(g=>{
     const dt=new Date(g.day.replace(/-/g,"/"));
     const net=g.items.reduce((s,r)=>s+(r.type==="收入"?r.amt:-r.amt),0);
     const open = filtering ? true : (g.day in st.dayOpen ? st.dayOpen[g.day] : g.day===today);
-    const label = `${dt.getMonth()+1}/${dt.getDate()}（${wk[dt.getDay()]}）${g.day===today?" 今天":""}`;
+    const label = `${q?dt.getFullYear()+"/":""}${dt.getMonth()+1}/${dt.getDate()}（${wk[dt.getDay()]}）${g.day===today?" 今天":""}`;
     return `<details class="dayg" data-day="${g.day}" ${open?"open":""}>
       <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"尚無紀錄"}</span></summary>`+
       (g.items.length? g.items.map(r=>`<div class="row">
@@ -347,6 +364,7 @@ function renderList(mr){
         <div class="m ${r.type==="收入"?"pos":""}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
       `</details>`;
   }).join("");
+  if(total>LIMIT) $("#list").insertAdjacentHTML("beforeend",`<div class="todayhint">僅顯示最新 ${LIMIT} 筆，請輸入更精確的關鍵字</div>`);
   document.querySelectorAll("details.dayg").forEach(d=>d.addEventListener("toggle",()=>{ if(!filtering) st.dayOpen[d.dataset.day]=d.open }));
 }
 
@@ -358,7 +376,7 @@ function bind(){
   document.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{st.type=b.dataset.type; st.shown=PAGE; render()});
   const c=$("#clrcat"); if(c) c.onclick=()=>{st.cat=null; render()};
   $("#noinv").onchange=e=>{st.noInv=e.target.checked; render()};
-  $("#q").oninput=e=>{st.q=e.target.value; st.shown=PAGE; renderList(mr().filter(()=>true))};
+  $("#q").oninput=e=>{st.q=e.target.value; st.shown=PAGE; renderList()};
 }
 
 const months=()=>[...new Set(st.rows.map(r=>r.key))];
