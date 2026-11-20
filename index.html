@@ -29,7 +29,10 @@ button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 
 /* header */
-.top{display:flex; align-items:center; gap:8px; margin-bottom:14px}
+.top{display:flex; align-items:baseline; gap:8px; margin-bottom:8px}
+.upd{font-size:12px; color:var(--mute)}
+.ctrl{display:flex; align-items:center; gap:8px; margin-bottom:14px}
+.ctrl select.month{flex:1}
 .top h1{font-size:18px; margin:0; flex:1; font-weight:700}
 .ico{border:1px solid var(--line); background:var(--card); border-radius:8px; height:34px; min-width:34px; padding:0 10px}
 .ico:hover{background:var(--chip)}
@@ -134,13 +137,15 @@ details.dayg[open]>summary.day{margin-bottom:0}
 <div class="wrap">
   <div class="top">
     <h1>記帳本</h1>
+    <span class="upd" id="upd"></span>
+  </div>
+  <div class="ctrl">
     <button class="ico" id="prev" aria-label="上個月">‹</button>
     <select class="month" id="month" aria-label="選擇月份"></select>
     <button class="ico" id="next" aria-label="下個月">›</button>
     <button class="ico" id="reload" aria-label="重新載入">↻</button>
   </div>
   <div id="app"><div class="status">載入中…</div></div>
-  <div class="foot" id="foot"></div>
 </div>
 
 <script>
@@ -201,7 +206,9 @@ async function load(){
   st.rows = toRows(text);
   const months=[...new Set(st.rows.map(r=>r.key))];
   if(!st.month || !months.includes(st.month)) st.month = months[0];
-  $("#foot").textContent = (cached?"離線資料，": "") + "共 "+st.rows.length+" 筆，更新於 "+new Date().toLocaleString("zh-TW",{hour12:false});
+  let at=Date.now(); if(cached){ try{ at=+localStorage.getItem("ledger_at")||at }catch(e){} }
+  const u=new Date(at);
+  $("#upd").textContent = (cached?"離線資料　":"")+"更新 "+(u.getMonth()+1)+"/"+u.getDate()+" "+pad(u.getHours())+":"+pad(u.getMinutes());
   render();
 }
 
