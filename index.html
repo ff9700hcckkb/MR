@@ -40,11 +40,22 @@ button{cursor:pointer}
 .top{display:flex; align-items:baseline; gap:8px; margin-bottom:8px}
 .upd{font-size:12px; color:var(--mute)}
 .ctrl{display:flex; align-items:center; gap:8px; margin-bottom:14px}
-.ctrl select.month{flex:1}
+.ctrl{position:relative}
+.ctrl .monthbtn{flex:1}
 .top h1{font-size:18px; margin:0; flex:1; font-weight:700}
 .ico{border:1px solid var(--line); background:var(--card); border-radius:8px; height:34px; min-width:34px; padding:0 10px}
 .ico:hover{background:var(--chip)}
-select.month{border:1px solid var(--line); background:var(--card); border-radius:8px; height:34px; padding:0 8px; font-weight:600}
+.monthbtn{border:1px solid var(--line); background:var(--card); border-radius:8px; height:34px; padding:0 8px; font-weight:600}
+#mpbk{position:fixed; inset:0; z-index:24}
+#mp{position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:25; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; box-shadow:0 8px 28px rgba(0,0,0,.28)}
+.mp-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+.mp-head b{font-size:16px}
+.mp-head button{border:1px solid var(--line); background:var(--bg); width:34px; height:32px; border-radius:8px; font-size:18px}
+.mp-head button:disabled{opacity:.3}
+.mp-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px}
+.mp-grid button{height:42px; border:1px solid var(--line); background:var(--bg); border-radius:10px; font-size:15px}
+.mp-grid button.on{background:var(--ink); color:var(--card); border-color:var(--ink); font-weight:600}
+.mp-grid button:disabled{opacity:.28; border-style:dashed}
 
 /* summary */
 .hero{background:var(--card); border-radius:14px; padding:18px 18px 14px; box-shadow:var(--shadow); border:1px solid var(--line)}
@@ -182,9 +193,11 @@ body.lock{position:fixed; left:0; right:0; width:100%}
   </div>
   <div class="ctrl">
     <button class="ico" id="prev" aria-label="上個月">‹</button>
-    <select class="month" id="month" aria-label="選擇月份"></select>
+    <button class="monthbtn" id="monthbtn" aria-label="選擇月份"></button>
     <button class="ico" id="next" aria-label="下個月">›</button>
     <button class="ico" id="reload" aria-label="重新載入">↻</button>
+    <div id="mpbk" hidden></div>
+    <div id="mp" hidden></div>
   </div>
   <div id="app"><div class="status">載入中…</div></div>
 </div>
@@ -208,6 +221,8 @@ const COLORS = {飲食:"#e08a3c",交通:"#4a8fd6",生活:"#7a6bd1",投資:"#2c9a
 const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
+let lastLoad=0;
+const BUILD="20261123-2";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -263,14 +278,14 @@ async function load(quiet){
   let at=Date.now(); if(cached){ try{ at=+localStorage.getItem("ledger_at")||at }catch(e){} }
   const u=new Date(at);
   $("#upd").textContent = (cached?"離線資料　":"")+"更新 "+(u.getMonth()+1)+"/"+u.getDate()+" "+pad(u.getHours())+":"+pad(u.getMinutes());
-  render();
+  lastLoad=Date.now();
+  const y=window.scrollY; render(); if(quiet) window.scrollTo(0,y);
 }
 
 function render(){
   const base = st.rows.filter(r=>!(st.noInv && r.cat==="投資"));
   const months=[...new Set(st.rows.map(r=>r.key))]; // desc
-  const sel=$("#month");
-  sel.innerHTML = months.map(k=>`<option value="${k}" ${k===st.month?"selected":""}>${k.replace("-","年")}月</option>`).join("");
+  $("#monthbtn").textContent = `${st.month.slice(0,4)}年${+st.month.slice(5)}月 ▾`;
   const mi=months.indexOf(st.month);
   $("#next").disabled = mi<=0; $("#prev").disabled = mi>=months.length-1;
 
@@ -423,7 +438,37 @@ function bind(){
 }
 
 const months=()=>[...new Set(st.rows.map(r=>r.key))];
-$("#month").onchange=e=>{st.month=e.target.value; st.cat=null; st.shown=PAGE; render()};
+// ===== 月份選擇器 =====
+let pickY=0;
+function drawPicker(){
+  const ks=months(), set=new Set(ks), ys=ks.map(k=>+k.slice(0,4));
+  const minY=Math.min(...ys), maxY=Math.max(...ys);
+  $("#mp").innerHTML=`
+    <div class="mp-head"><button type="button" id="mpp" ${pickY<=minY?"disabled":""} aria-label="上一年">‹</button><b>${pickY} 年</b><button type="button" id="mpn" ${pickY>=maxY?"disabled":""} aria-label="下一年">›</button></div>
+    <div class="mp-grid">${Array.from({length:12},(_,i)=>{const k=`${pickY}-${pad(i+1)}`; return `<button type="button" data-k="${k}" ${set.has(k)?"":"disabled"} class="${k===st.month?"on":""}">${i+1}月</button>`}).join("")}</div>`;
+  $("#mpp").onclick=()=>{pickY--; drawPicker()};
+  $("#mpn").onclick=()=>{pickY++; drawPicker()};
+  $("#mp").querySelectorAll(".mp-grid button").forEach(b=>b.onclick=()=>{st.month=b.dataset.k; st.cat=null; st.shown=PAGE; closePicker(); render()});
+}
+function openPicker(){ if(!st.rows.length) return; pickY=+st.month.slice(0,4); drawPicker(); $("#mp").hidden=false; $("#mpbk").hidden=false }
+function closePicker(){ $("#mp").hidden=true; $("#mpbk").hidden=true }
+$("#monthbtn").onclick=()=>{ $("#mp").hidden ? openPicker() : closePicker() };
+$("#mpbk").onclick=closePicker;
+// ===== 自動更新：回到 App 時重新載入資料，並偵測是否有新版 =====
+async function checkVersion(){
+  try{
+    const r=await fetch(location.pathname+"?_="+Date.now(),{cache:"no-store"});
+    const m=/const BUILD="([^"]+)"/.exec(await r.text());
+    if(m && m[1]>BUILD){ location.replace(location.pathname+"?v="+m[1]); return true }
+  }catch(e){}
+  return false;
+}
+document.addEventListener("visibilitychange",async()=>{
+  if(document.visibilityState!=="visible") return;
+  if(await checkVersion()) return;
+  const busy = !$("#ov").hidden || (document.activeElement && document.activeElement.id==="q");
+  if(!busy && Date.now()-lastLoad>30000) load(true);
+});
 $("#prev").onclick=()=>{const m=months(),i=m.indexOf(st.month); if(i<m.length-1){st.month=m[i+1]; st.cat=null; st.shown=PAGE; render()}};
 $("#next").onclick=()=>{const m=months(),i=m.indexOf(st.month); if(i>0){st.month=m[i-1]; st.cat=null; st.shown=PAGE; render()}};
 $("#reload").onclick=load;
@@ -497,6 +542,7 @@ $("#fab").onclick=openSheet;
 $("#ov").onclick=e=>{if(e.target.id==="ov")closeSheet()};
 
 load();
+checkVersion();
 </script>
 </body>
 </html>
