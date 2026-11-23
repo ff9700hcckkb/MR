@@ -24,6 +24,7 @@
   }
 }
 *{box-sizing:border-box}
+html,body{overscroll-behavior-y:none}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0; background:var(--bg); color:var(--ink);
@@ -482,15 +483,15 @@ async function send(){
 // iOS 會無視 overflow:hidden，改用 touchmove 攔截，確保背景不會被帶動
 (function(){
   const ov=$("#ov"), sheet=$("#sheet"); let y0=0;
-  ov.addEventListener("touchstart",e=>{y0=e.touches[0].clientY},{passive:true});
-  ov.addEventListener("touchmove",e=>{
+  document.addEventListener("touchstart",e=>{y0=e.touches[0].clientY},{passive:true,capture:true});
+  document.addEventListener("touchmove",e=>{
     if(ov.hidden) return;
     if(!sheet.contains(e.target)){ e.preventDefault(); return }            // 點在灰色背景上：一律擋掉
     const scrollable = sheet.scrollHeight > sheet.clientHeight + 1;
     if(!scrollable){ e.preventDefault(); return }                          // 面板不需要捲動：擋掉
     const dy=e.touches[0].clientY-y0, atTop=sheet.scrollTop<=0, atBottom=sheet.scrollTop+sheet.clientHeight>=sheet.scrollHeight-1;
     if((atTop&&dy>0)||(atBottom&&dy<0)) e.preventDefault();               // 面板捲到頭尾：不要傳給背景
-  },{passive:false});
+  },{passive:false,capture:true});
 })();
 $("#fab").onclick=openSheet;
 $("#ov").onclick=e=>{if(e.target.id==="ov")closeSheet()};
