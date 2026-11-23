@@ -360,7 +360,7 @@ function render(){
     ${xr.length?`<div class="xsum"><b>$${fmt(xs)}</b><span>${xr.length} 筆・占支出 ${(xs/E*100).toFixed(0)}%</span></div>`+
       xr.map(r=>`<div class="row"><span class="dot" style="background:${col(r.cat)}"></span>
         <div class="t"><b>${esc(r.note||r.cat)}</b><small>${r.d.getMonth()+1}/${r.d.getDate()} ${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
-        <div class="m">$${fmt(r.amt)}</div></div>`).join(""):'<div class="empty">本月沒有 X</div>'}
+        <div class="m neg">$${fmt(r.amt)}</div></div>`).join(""):'<div class="empty">本月沒有 X</div>'}
   </div>
 
   <section>
@@ -404,7 +404,7 @@ function renderList(){
       (g.items.length? g.items.map(r=>`<div class="row">
         <span class="dot" style="background:${col(r.cat)}"></span>
         <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}${r.pending?'<span class="x" style="color:var(--mute)">同步中</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
-        <div class="m ${r.type==="收入"?"pos":""}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
+        <div class="m ${r.type==="收入"?"pos":"neg"}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
       `</details>`;
   }).join("");
   if(total>LIMIT) $("#list").insertAdjacentHTML("beforeend",`<div class="todayhint">僅顯示最新 ${LIMIT} 筆，請輸入更精確的關鍵字</div>`);
