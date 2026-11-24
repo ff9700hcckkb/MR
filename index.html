@@ -227,7 +227,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-4";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-5";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -287,14 +287,14 @@ async function loadInner(quiet){
   if(API_URL.startsWith("__")){ $("#app").innerHTML='<div class="status">尚未設定 API 網址</div>'; return }
   if(!getToken()){ showLock(); return }
   if(!quiet) $("#app").innerHTML='<div class="status">載入中…</div>';
-  let list, cached=false, why="";
+  let list, meta=null, cached=false, why="";
   try{
     const j=await api({action:"list"});
     if(!j.ok){
       if(j.error==="auth"){ try{localStorage.removeItem("ledger_token")}catch(e){}; showLock("密碼錯誤，請重新輸入"); return }
       throw new Error(j.error||"unknown");
     }
-    list=j.rows;
+    list=j.rows; meta=j.meta||null;
     try{ localStorage.setItem("ledger_rows",JSON.stringify(list)); localStorage.setItem("ledger_at",Date.now()) }catch(e){}
   }catch(e){
     why=String(e.message||e);
@@ -308,6 +308,10 @@ async function loadInner(quiet){
     r.type===p.type && r.cat===p.cat && r.method===p.method && r.amt===p.amt && r.note===p.note && Math.abs(r.d-p.d)<10*60e3));
   st.rows = [...st.pending, ...apiRows].sort((a,b)=>b.d-a.d);
   const months=[...new Set(st.rows.map(r=>r.key))];
+  if(!months.length){
+    $("#app").innerHTML='<div class="status">連線成功，但沒有讀到任何帳目。'+(meta?`<br><small>檔案「${esc(meta.file)}」・分頁「${esc(meta.sheet)}」・列數 ${esc(meta.lastRow)}<br>所有分頁：${esc((meta.sheets||[]).join("、"))}</small>`:"")+'</div>';
+    return;
+  }
   if(!st.month || !months.includes(st.month)) st.month = months[0];
   let at=Date.now(); if(cached){ try{ at=+localStorage.getItem("ledger_at")||at }catch(e){} }
   const u=new Date(at);
