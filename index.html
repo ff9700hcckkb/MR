@@ -227,7 +227,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-3";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-4";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -258,8 +258,16 @@ function rowsFromApi(list){
 // ===== 與後端溝通（密碼存在這支手機裡，不會出現在網頁原始碼）=====
 const getToken=()=>{try{return localStorage.getItem("ledger_token")||""}catch(e){return ""}};
 async function api(payload){
-  const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:getToken(),...payload})});
-  return r.json();
+  const ctl=new AbortController(), timer=setTimeout(()=>ctl.abort(),25000);
+  try{
+    const r=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({token:getToken(),...payload}),signal:ctl.signal});
+    const text=await r.text();
+    try{ return JSON.parse(text) }
+    catch(e){ throw new Error("後端回應不是 JSON（HTTP "+r.status+"）："+text.replace(/\s+/g," ").slice(0,80)) }
+  }catch(e){
+    if(e.name==="AbortError") throw new Error("連線逾時（25 秒沒有回應）");
+    throw e;
+  }finally{ clearTimeout(timer) }
 }
 function showLock(msg){
   $("#fab").style.display="none"; $("#upd").textContent="";
@@ -272,6 +280,10 @@ function showLock(msg){
 }
 
 async function load(quiet){
+  try{ await loadInner(quiet) }
+  catch(e){ $("#app").innerHTML='<div class="status">發生錯誤：'+esc(e.message||e)+'</div>' }
+}
+async function loadInner(quiet){
   if(API_URL.startsWith("__")){ $("#app").innerHTML='<div class="status">尚未設定 API 網址</div>'; return }
   if(!getToken()){ showLock(); return }
   if(!quiet) $("#app").innerHTML='<div class="status">載入中…</div>';
@@ -287,9 +299,10 @@ async function load(quiet){
   }catch(e){
     why=String(e.message||e);
     try{ list=JSON.parse(localStorage.getItem("ledger_rows")||"null"); cached=!!list }catch(e2){}
-    if(!list){ $("#app").innerHTML='<div class="status">無法讀取資料，請檢查網路連線後再試。'+(why.startsWith("server")?"<br><small>"+esc(why)+"</small>":"")+'</div>'; return }
+    if(!list){ $("#app").innerHTML='<div class="status">無法讀取資料<br><small>'+esc(why)+'</small></div>'; return }
   }
   $("#fab").style.display="";
+  if(cached && !quiet) toast("連線失敗，顯示離線資料："+why.slice(0,40));
   const apiRows = rowsFromApi(list);
   st.pending = st.pending.filter(p=>Date.now()-p.at<10*60e3 && !apiRows.some(r=>
     r.type===p.type && r.cat===p.cat && r.method===p.method && r.amt===p.amt && r.note===p.note && Math.abs(r.d-p.d)<10*60e3));
