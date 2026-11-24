@@ -5,13 +5,13 @@
 <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
 <meta name="googlebot" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>吃土區</title>
+<title>吃土專區</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0b0d">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="吃土區">
+<meta name="apple-mobile-web-app-title" content="吃土專區">
 
 <style>
 :root{
@@ -197,7 +197,7 @@ body.lock{position:fixed; left:0; right:0; width:100%}
 <body>
 <div class="wrap">
   <div class="top">
-    <h1>吃土區</h1>
+    <h1>吃土專區</h1>
     <span class="upd" id="upd"></span>
   </div>
   <div class="ctrl">
@@ -229,7 +229,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-6";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-7";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -273,7 +273,7 @@ async function api(payload){
 }
 function showLock(msg){
   $("#fab").style.display="none"; $("#upd").textContent="";
-  $("#app").innerHTML=`<form class="gate" id="gate"><h2>請輸入密碼</h2><p>只需在這支手機輸入一次</p>
+  $("#app").innerHTML=`<form class="gate" id="gate"><h2>請輸入密碼</h2><p>每個裝置只需輸入一次</p>
     <input type="password" id="gpw" autocomplete="current-password" aria-label="密碼">
     <button type="submit">解鎖</button><div class="gerr">${esc(msg||"")}</div></form>`;
   $("#gate").onsubmit=e=>{e.preventDefault(); const v=$("#gpw").value.trim(); if(!v)return;
