@@ -232,7 +232,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-8";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-9";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -240,9 +240,9 @@ const fmt = n => Math.round(n).toLocaleString("en-US");
 const pad = n => String(n).padStart(2,"0");
 const col = c => COLORS[c] || "#8a94a3";
 
-function mkRow(d,type,method,cat,amt,note,adv,flag){
+function mkRow(d,type,method,cat,amt,note,adv){
   return {d, key:`${d.getFullYear()}-${pad(d.getMonth()+1)}`, day:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
-    time:`${pad(d.getHours())}:${pad(d.getMinutes())}`, type, method, cat, amt, note, adv:!!adv, flag:!!flag};
+    time:`${pad(d.getHours())}:${pad(d.getMinutes())}`, type, method, cat, amt, note, adv:!!adv};
 }
 // 伺服器回傳 [時間, 來源, 方式, 用途, 金額, 備註, 注記]；時間可能是毫秒數，或舊資料的文字
 function rowsFromApi(list){
@@ -256,7 +256,7 @@ function rowsFromApi(list){
       d=new Date(+m[1],+m[2]-1,+m[3],h,+m[6],+m[7]);
     }
     const amt=parseFloat(r[4]); if(isNaN(amt)||isNaN(d)) return null;
-    return mkRow(d,String(r[1]||"").trim(),String(r[2]||"").trim(),String(r[3]||"其它").trim(),amt,String(r[5]||"").trim(),String(r[6]||"").trim()==="代墊",String(r[6]||"").trim().toUpperCase()==="X");
+    return mkRow(d,String(r[1]||"").trim(),String(r[2]||"").trim(),String(r[3]||"其它").trim(),amt,String(r[5]||"").trim(),String(r[6]||"").trim()==="代墊");
   }).filter(Boolean).sort((a,b)=>b.d-a.d);
 }
 
@@ -462,7 +462,7 @@ function renderList(){
       <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆${g.items.some(r=>!r.adv)?`　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"・代墊"}`:"尚無紀錄"}</span></summary>`+
       (g.items.length? g.items.map(r=>`<div class="row">
         <span class="dot" style="background:${col(r.cat)}"></span>
-        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}${r.adv?'<span class="x adv">代墊</span>':""}${r.pending?'<span class="x" style="color:var(--mute)">同步中</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
+        <div class="t"><b>${esc(r.note||r.cat)}${r.adv?'<span class="x adv">代墊</span>':""}${r.pending?'<span class="x" style="color:var(--mute)">同步中</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
         <div class="m ${r.type==="收入"?"pos":"neg"}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
       `</details>`;
   }).join("");
@@ -563,7 +563,7 @@ async function send(){
     btn.disabled=false; btn.textContent="送出"; err.textContent="送出失敗："+(j.error||"未知錯誤"); return;
   }
   try{localStorage.setItem("ledger_method",f.method)}catch(e){}
-  const row=Object.assign(mkRow(new Date(),f.type,f.method,f.cat,amt,note,adv,false),{pending:true,at:Date.now()});
+  const row=Object.assign(mkRow(new Date(),f.type,f.method,f.cat,amt,note,adv),{pending:true,at:Date.now()});
   st.pending.unshift(row); st.rows=[row,...st.rows];
   st.month=row.key; st.cat=null; st.q=""; st.type="all";
   closeSheet(); render(); toast("已送出");
