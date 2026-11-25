@@ -71,15 +71,17 @@ button{cursor:pointer}
 .opt{display:flex; gap:14px; flex-wrap:wrap; margin:10px 2px 0; color:var(--mute); font-size:13px}
 .opt label{display:flex; align-items:center; gap:6px; cursor:pointer}
 
+.advline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:13px; color:var(--mute)}
+.advline b{color:var(--ink); font-size:15px; margin-left:4px}
 /* sections */
 section{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
 section h2{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
 section h2 small{font-weight:400; color:var(--mute); font-size:12px}
 
 /* tabs */
-.tabbar{display:flex; gap:6px; margin-top:12px}
-.tabbar button{flex:1; height:38px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:14px; color:var(--mute); padding:0 4px; white-space:nowrap}
-.tabbar button[data-tab="x"]{flex:0 0 44px}
+.tabbar{display:flex; gap:5px; margin-top:12px}
+.tabbar button{flex:1; height:38px; border:1px solid var(--line); background:var(--card); border-radius:10px; font-size:13.5px; color:var(--mute); padding:0 2px; white-space:nowrap}
+.tabbar button[data-tab="adv"]{flex:0 0 52px}
 .tabbar button.on{background:var(--ink); color:var(--card); border-color:var(--ink); font-weight:600}
 .pane{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:8px; box-shadow:var(--shadow)}
 .pane[hidden]{display:none}
@@ -185,6 +187,7 @@ body.lock{position:fixed; left:0; right:0; width:100%}
 .chips button.on{background:var(--ink); color:var(--card); border-color:var(--ink)}
 .chips button i{width:8px; height:8px; border-radius:50%; display:inline-block}
 #sheet .seg button{flex:1; height:38px; font-size:15px}
+.x.adv{color:var(--accent)}
 .xrow{display:flex; align-items:center; gap:8px; margin-top:14px; font-size:15px; cursor:pointer}
 .xrow input{width:20px; height:20px}
 .send{width:100%; height:50px; margin-top:16px; border:0; border-radius:12px; background:#f5c400; color:#111; font-size:17px; font-weight:700}
@@ -229,7 +232,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-7";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-8";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -237,9 +240,9 @@ const fmt = n => Math.round(n).toLocaleString("en-US");
 const pad = n => String(n).padStart(2,"0");
 const col = c => COLORS[c] || "#8a94a3";
 
-function mkRow(d,type,method,cat,amt,note,flag){
+function mkRow(d,type,method,cat,amt,note,adv,flag){
   return {d, key:`${d.getFullYear()}-${pad(d.getMonth()+1)}`, day:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
-    time:`${pad(d.getHours())}:${pad(d.getMinutes())}`, type, method, cat, amt, note, flag};
+    time:`${pad(d.getHours())}:${pad(d.getMinutes())}`, type, method, cat, amt, note, adv:!!adv, flag:!!flag};
 }
 // 伺服器回傳 [時間, 來源, 方式, 用途, 金額, 備註, 注記]；時間可能是毫秒數，或舊資料的文字
 function rowsFromApi(list){
@@ -253,7 +256,7 @@ function rowsFromApi(list){
       d=new Date(+m[1],+m[2]-1,+m[3],h,+m[6],+m[7]);
     }
     const amt=parseFloat(r[4]); if(isNaN(amt)||isNaN(d)) return null;
-    return mkRow(d,String(r[1]||"").trim(),String(r[2]||"").trim(),String(r[3]||"其它").trim(),amt,String(r[5]||"").trim(),String(r[6]||"").trim().toUpperCase()==="X");
+    return mkRow(d,String(r[1]||"").trim(),String(r[2]||"").trim(),String(r[3]||"其它").trim(),amt,String(r[5]||"").trim(),String(r[6]||"").trim()==="代墊",String(r[6]||"").trim().toUpperCase()==="X");
   }).filter(Boolean).sort((a,b)=>b.d-a.d);
 }
 
@@ -323,7 +326,7 @@ async function loadInner(quiet){
 }
 
 function render(){
-  const base = st.rows.filter(r=>!(st.noInv && r.cat==="投資"));
+  const base = st.rows.filter(r=>!(st.noInv && r.cat==="投資") && !r.adv);
   const months=[...new Set(st.rows.map(r=>r.key))]; // desc
   $("#monthbtn").textContent = `${st.month.slice(0,4)}年${+st.month.slice(5)}月 ▾`;
   const mi=months.indexOf(st.month);
@@ -358,10 +361,10 @@ function render(){
   const mm={}; exp.forEach(r=>mm[r.method]=(mm[r.method]||0)+r.amt);
   const mList=Object.entries(mm).sort((a,b)=>b[1]-a[1]);
 
-  // flagged list
-  const xr = exp.filter(r=>r.flag), xs = sum(xr);
-  // flagged
-  const X = sum(exp.filter(r=>r.flag));
+  // 代墊：不分月份，累計「墊出去 − 已回款」
+  const advAll = st.rows.filter(r=>r.adv);
+  const advOut = sum(advAll.filter(r=>r.type==="支出")), advIn = sum(advAll.filter(r=>r.type==="收入"));
+  const advBal = advOut - advIn;
 
   const html = `
   <div class="hero">
@@ -370,13 +373,14 @@ function render(){
     <div class="sub">
       <div><div class="lbl">本月收入</div><div class="v pos">$${fmt(I)}</div></div>
     </div>
+    ${Math.abs(advBal)>0.5?`<div class="advline">代墊${advBal>0?"待回":"多收"} <b>$${fmt(Math.abs(advBal))}</b></div>`:""}
   </div>
   <div class="opt">
     <label><input type="checkbox" id="noinv" ${st.noInv?"checked":""}> 不計「投資」</label>
   </div>
 
   <div class="tabbar" role="tablist">
-    ${[["cat","支出用途"],["daily","每日支出"],["trend","近12個月"],["meth","支付方式"],["x","X"]].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${st.tab===k?"on":""}" aria-selected="${st.tab===k}">${l}</button>`).join("")}
+    ${[["cat","支出用途"],["daily","每日支出"],["trend","近12個月"],["meth","支付方式"],["adv","代墊"]].map(([k,l])=>`<button role="tab" data-tab="${k}" class="${st.tab===k?"on":""}" aria-selected="${st.tab===k}">${l}</button>`).join("")}
   </div>
   <div class="pane" data-k="cat" ${st.tab==="cat"?"":"hidden"}>
     <div class="hint">點選可篩選明細</div>
@@ -411,11 +415,11 @@ function render(){
     <div class="mlegend">${mList.map(([m,v])=>`<span><b style="background:${METHOD_COLORS[m]||"#8a94a3"}"></b>${esc(m)} $${fmt(v)}<em>${(v/E*100).toFixed(0)}%</em></span>`).join("")}</div>
   </div>
 
-  <div class="pane" data-k="x" ${st.tab==="x"?"":"hidden"}>
-    ${xr.length?`<div class="xsum"><b>$${fmt(xs)}</b><span>${xr.length} 筆・占支出 ${(xs/E*100).toFixed(0)}%</span></div>`+
-      xr.map(r=>`<div class="row"><span class="dot" style="background:${col(r.cat)}"></span>
-        <div class="t"><b>${esc(r.note||r.cat)}</b><small>${r.d.getMonth()+1}/${r.d.getDate()} ${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
-        <div class="m neg">$${fmt(r.amt)}</div></div>`).join(""):'<div class="empty">本月沒有 X</div>'}
+  <div class="pane" data-k="adv" ${st.tab==="adv"?"":"hidden"}>
+    ${advAll.length?`<div class="xsum"><b style="color:var(--ink)">$${fmt(Math.abs(advBal))}</b><span>${Math.abs(advBal)<0.5?"已全數回款":(advBal>0?"代墊待回":"多收")}　墊出 $${fmt(advOut)}・已回 $${fmt(advIn)}</span></div>`+
+      advAll.map(r=>`<div class="row"><span class="dot" style="background:${col(r.cat)}"></span>
+        <div class="t"><b>${esc(r.note||r.cat)}</b><small>${r.d.getFullYear()}/${r.d.getMonth()+1}/${r.d.getDate()} ${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
+        <div class="m ${r.type==="收入"?"pos":"neg"}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join(""):'<div class="empty">目前沒有代墊</div>'}
   </div>
 
   <section>
@@ -451,14 +455,14 @@ function renderList(){
   const wk="日一二三四五六", filtering=!!(q||st.cat);
   $("#list").innerHTML = groups.map(g=>{
     const dt=new Date(g.day.replace(/-/g,"/"));
-    const net=g.items.reduce((s,r)=>s+(r.type==="收入"?r.amt:-r.amt),0);
+    const net=g.items.filter(r=>!r.adv).reduce((s,r)=>s+(r.type==="收入"?r.amt:-r.amt),0);
     const open = filtering ? true : (g.day in st.dayOpen ? st.dayOpen[g.day] : g.day===today);
     const label = `${q?dt.getFullYear()+"/":""}${dt.getMonth()+1}/${dt.getDate()}（${wk[dt.getDay()]}）${g.day===today?" 今天":""}`;
     return `<details class="dayg" data-day="${g.day}" ${open?"open":""}>
-      <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"尚無紀錄"}</span></summary>`+
+      <summary class="day"><span class="l">${label}</span><span class="n2">${g.items.length?`${g.items.length} 筆${g.items.some(r=>!r.adv)?`　${net<0?"−":"+"}$${fmt(Math.abs(net))}`:"・代墊"}`:"尚無紀錄"}</span></summary>`+
       (g.items.length? g.items.map(r=>`<div class="row">
         <span class="dot" style="background:${col(r.cat)}"></span>
-        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}${r.pending?'<span class="x" style="color:var(--mute)">同步中</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
+        <div class="t"><b>${esc(r.note||r.cat)}${r.flag?'<span class="x">X</span>':""}${r.adv?'<span class="x adv">代墊</span>':""}${r.pending?'<span class="x" style="color:var(--mute)">同步中</span>':""}</b><small>${r.time}・${esc(r.cat)}・${esc(r.method)}</small></div>
         <div class="m ${r.type==="收入"?"pos":"neg"}">${r.type==="收入"?"+":""}$${fmt(r.amt)}</div></div>`).join("") : '<div class="todayhint">今天還沒有記帳</div>')+
       `</details>`;
   }).join("");
@@ -527,7 +531,7 @@ function openSheet(){
     <label class="l">方式</label>${chips("g-method",METHODS,f.method,false)}
     <label class="l" for="f-note">備註</label>
     <input id="f-note" type="text" placeholder="選填" autocomplete="off">
-    <label class="xrow"><input type="checkbox" id="f-x"> 標記 X（非必要）</label>
+    <label class="xrow"><input type="checkbox" id="f-x"> 代墊（公司款，之後會轉回）</label>
     <div class="err" id="err"></div>
     <button type="button" class="send" id="send">送出</button>`;
   const pick=(gid,key)=>$(gid).onclick=e=>{const b=e.target.closest("button"); if(!b)return; f[key]=b.dataset.v; $(gid).querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b))};
@@ -544,13 +548,13 @@ function lockScroll(on){
 }
 function closeSheet(){$("#ov").hidden=true; lockScroll(false)}
 async function send(){
-  const amt=parseFloat($("#f-amt").value), note=$("#f-note").value.trim(), flag=$("#f-x").checked, err=$("#err");
+  const amt=parseFloat($("#f-amt").value), note=$("#f-note").value.trim(), adv=$("#f-x").checked, err=$("#err");
   if(!(amt>0)){err.textContent="請輸入金額"; return}
   if(!f.cat){err.textContent="請選擇用途"; return}
   err.textContent=""; const btn=$("#send"); btn.disabled=true; btn.textContent="送出中…";
   let j;
   try{
-    j=await api({action:"add",type:f.type,method:f.method,cat:f.cat,amt,note,flag});
+    j=await api({action:"add",type:f.type,method:f.method,cat:f.cat,amt,note,flag:adv});
   }catch(e){
     btn.disabled=false; btn.textContent="送出"; err.textContent="送出失敗，請確認網路後再試"; return;
   }
@@ -559,7 +563,7 @@ async function send(){
     btn.disabled=false; btn.textContent="送出"; err.textContent="送出失敗："+(j.error||"未知錯誤"); return;
   }
   try{localStorage.setItem("ledger_method",f.method)}catch(e){}
-  const row=Object.assign(mkRow(new Date(),f.type,f.method,f.cat,amt,note,flag),{pending:true,at:Date.now()});
+  const row=Object.assign(mkRow(new Date(),f.type,f.method,f.cat,amt,note,adv,false),{pending:true,at:Date.now()});
   st.pending.unshift(row); st.rows=[row,...st.rows];
   st.month=row.key; st.cat=null; st.q=""; st.type="all";
   closeSheet(); render(); toast("已送出");
