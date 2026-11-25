@@ -73,6 +73,7 @@ button{cursor:pointer}
 
 .advline{margin-top:10px; padding-top:10px; border-top:1px solid var(--line); font-size:13px; color:var(--mute)}
 .advline b{color:var(--ink); font-size:15px; margin-left:4px}
+section h2 small b{font-weight:650; font-size:13px}
 /* sections */
 section{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow)}
 section h2{font-size:14px; margin:0 0 10px; display:flex; justify-content:space-between; align-items:baseline; font-weight:650}
@@ -232,7 +233,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-11";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-12";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -445,8 +446,11 @@ function renderList(){
     (st.type==="all"||r.type===st.type) &&
     (!st.cat || r.cat===st.cat) &&
     (!q || (r.note+r.cat+r.method).toLowerCase().includes(q)));
-  const total=rows.length; if(rows.length>LIMIT) rows=rows.slice(0,LIMIT);
-  $("#cnt").textContent = q ? `全部月份 ${total} 筆` : total+" 筆";
+  const total=rows.length, rows0=rows; if(rows.length>LIMIT) rows=rows.slice(0,LIMIT);
+  if(q){
+    const se=rows0.filter(r=>r.type==="支出").reduce((a,r)=>a+r.amt,0), si=rows0.filter(r=>r.type==="收入").reduce((a,r)=>a+r.amt,0);
+    $("#cnt").innerHTML = `全部月份 ${total} 筆`+(se?`　支出 <b class="neg">$${fmt(se)}</b>`:"")+(si?`　收入 <b class="pos">$${fmt(si)}</b>`:"");
+  } else $("#cnt").textContent = total+" 筆";
   const now=new Date(), today=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   const isCur = st.month===today.slice(0,7);
   const groups=[]; rows.forEach(r=>{ const g=groups[groups.length-1]; if(g&&g.day===r.day)g.items.push(r); else groups.push({day:r.day,items:[r]}) });
