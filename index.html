@@ -16,13 +16,13 @@
 <style>
 :root{
   --bg:#f3f5f8; --card:#ffffff; --ink:#17202a; --mute:#6b7785; --line:#e4e8ee;
-  --out:#d2453c; --in:#12856b; --accent:#2f4b7c; --chip:#eef1f5;
+  --out:#12856b; --in:#d2453c; --err:#d2453c; --accent:#2f4b7c; --chip:#eef1f5;
   --shadow:0 1px 2px rgba(23,32,42,.05);
 }
 @media (prefers-color-scheme:dark){
   :root{
     --bg:#12161c; --card:#1b2129; --ink:#e8ecf1; --mute:#8d99a8; --line:#2a323d;
-    --out:#ef6a60; --in:#3fc19f; --accent:#8fb0ee; --chip:#252d38; --shadow:none;
+    --out:#3fc19f; --in:#ef6a60; --err:#ef6a60; --accent:#8fb0ee; --chip:#252d38; --shadow:none;
   }
 }
 *{box-sizing:border-box}
@@ -154,7 +154,7 @@ details.dayg[open]>summary.day{margin-bottom:0}
 .row .t b{font-weight:500; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .row .t small{color:var(--mute); font-size:12px}
 .row .m{font-weight:600; text-align:right}
-.x{display:inline-block; font-size:10px; font-weight:700; background:var(--chip); color:var(--out); border-radius:4px; padding:0 4px; margin-left:6px; vertical-align:1px}
+.x{display:inline-block; font-size:10px; font-weight:700; background:var(--chip); color:var(--mute); border-radius:4px; padding:0 4px; margin-left:6px; vertical-align:1px}
 .more{display:block; width:100%; margin-top:10px; height:36px; border:1px solid var(--line); background:var(--bg); border-radius:8px}
 .empty,.status{color:var(--mute); text-align:center; padding:24px 0}
 .foot{text-align:center; color:var(--mute); font-size:12px; margin-top:16px}
@@ -165,7 +165,7 @@ details.dayg[open]>summary.day{margin-bottom:0}
 .gate p{margin:0 0 14px; color:var(--mute); font-size:13px}
 .gate input{width:100%; height:46px; border:1px solid var(--line); background:var(--bg); border-radius:10px; padding:0 12px; font-size:16px; text-align:center}
 .gate button{width:100%; height:46px; margin-top:12px; border:0; border-radius:10px; background:#f5c400; color:#111; font-size:16px; font-weight:700}
-.gate .gerr{color:var(--out); font-size:13px; min-height:18px; margin-top:8px}
+.gate .gerr{color:var(--err); font-size:13px; min-height:18px; margin-top:8px}
 /* 記一筆 */
 .wrap{padding-bottom:96px}
 #fab{position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom,0px)); width:56px; height:56px; border-radius:50%; border:0; background:#f5c400; color:#111; font-size:32px; line-height:1; box-shadow:0 4px 14px rgba(0,0,0,.35); z-index:20}
@@ -192,7 +192,7 @@ body.lock{position:fixed; left:0; right:0; width:100%}
 .xrow input{width:20px; height:20px}
 .send{width:100%; height:50px; margin-top:16px; border:0; border-radius:12px; background:#f5c400; color:#111; font-size:17px; font-weight:700}
 .send:disabled{opacity:.5}
-.err{color:var(--out); font-size:13px; min-height:18px; margin-top:8px}
+.err{color:var(--err); font-size:13px; min-height:18px; margin-top:8px}
 #toast{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); background:var(--ink); color:var(--card); padding:8px 16px; border-radius:999px; font-size:14px; z-index:40; opacity:0; pointer-events:none; transition:opacity .2s}
 #toast.show{opacity:1}
 </style>
@@ -232,7 +232,7 @@ const METHOD_COLORS = {刷卡:"#4a8fd6",轉帳:"#7a6bd1",現金:"#e08a3c"};
 const PAGE = 40;
 
 let lastLoad=0;
-const BUILD="20261123-10";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
+const BUILD="20261123-11";   // 每次改版會更新，用來讓已安裝的網頁App偵測新版
 const st = {rows:[], month:null, type:"all", cat:null, q:"", noInv:false, shown:PAGE, tab:null, dayOpen:{}, pending:[]};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
